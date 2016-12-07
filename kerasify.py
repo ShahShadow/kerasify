@@ -50,8 +50,10 @@ def export_model(model, filename):
                 weights = layer.get_weights()[0]
                 biases = layer.get_weights()[1]
                 activation = layer.get_config()['activation']
+                name = layer.get_config()['name']
 
                 f.write(struct.pack('I', LAYER_DENSE))
+                f.write(struct.pack('64s', name))
                 f.write(struct.pack('I', weights.shape[0]))
                 f.write(struct.pack('I', weights.shape[1]))
                 f.write(struct.pack('I', biases.shape[0]))
@@ -70,12 +72,14 @@ def export_model(model, filename):
                 weights = layer.get_weights()[0]
                 biases = layer.get_weights()[1]
                 activation = layer.get_config()['activation']
+                name = layer.get_config()['name']
 
                 # The kernel is accessed in reverse order. To simplify the C side we'll
                 # flip the weight matrix for each kernel.
                 weights = weights[:,:,::-1,::-1]
 
                 f.write(struct.pack('I', LAYER_CONVOLUTION2D))
+                f.write(struct.pack('64s', name))
                 f.write(struct.pack('I', weights.shape[0]))
                 f.write(struct.pack('I', weights.shape[1]))
                 f.write(struct.pack('I', weights.shape[2]))
@@ -91,27 +95,38 @@ def export_model(model, filename):
                 write_activation(activation)
 
             elif layer_type == 'Flatten':
+                name = layer.get_config()['name']
+
                 f.write(struct.pack('I', LAYER_FLATTEN))
+                f.write(struct.pack('64s', name))
 
             elif layer_type == 'ELU':
+                name = layer.get_config()['name']
+
                 f.write(struct.pack('I', LAYER_ELU))
+                f.write(struct.pack('64s', name))
                 f.write(struct.pack('f', layer.alpha))
 
             elif layer_type == 'Activation':
                 activation = layer.get_config()['activation']
+                name = layer.get_config()['name']
 
                 f.write(struct.pack('I', LAYER_ACTIVATION))
+                f.write(struct.pack('64s', name))
+
                 write_activation(activation)
 
             elif layer_type == 'MaxPooling2D':
                 assert layer.border_mode == 'valid', "Only border_mode=valid is implemented"
 
                 pool_size = layer.get_config()['pool_size']
+                name = layer.get_config()['name']
 
                 f.write(struct.pack('I', LAYER_MAXPOOLING2D))
+                f.write(struct.pack('64s', name))
                 f.write(struct.pack('I', pool_size[0]))
                 f.write(struct.pack('I', pool_size[1]))
-                
+
 
             else:
                 assert False, "Unsupported layer type: %s" % layer_type

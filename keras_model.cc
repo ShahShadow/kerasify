@@ -46,6 +46,19 @@ bool ReadFloats(std::ifstream* file, float* f, size_t n)
     return true;
 }
 
+bool ReadString(std::ifstream* file, std::string* str, size_t n)
+{
+    KASSERT(file, "Invalid file stream");
+    KASSERT(str, "Invalid pointer");
+
+    char buffer[n];
+    file->read((char *) &buffer, sizeof(char) * n);
+    *str = std::string((char *)&buffer);
+    KASSERT(((unsigned int) file->gcount()) == sizeof(char) * n, "Expected chars");
+
+    return true;
+}
+
 bool KerasLayerActivation::LoadLayer(std::ifstream* file)
 {
     KASSERT(file, "Invalid file stream");
@@ -108,6 +121,9 @@ bool KerasLayerDense::LoadLayer(std::ifstream* file)
 {
     KASSERT(file, "Invalid file stream");
 
+    std::string name;
+    KASSERT(ReadString(file, &name, 64), "Expected layer name");
+
     unsigned int weights_rows = 0;
     KASSERT(ReadUnsignedInt(file, &weights_rows), "Expected weight rows");
     KASSERT(weights_rows > 0, "Invalid weights # rows");
@@ -152,7 +168,7 @@ bool KerasLayerDense::Apply(Tensor* in, Tensor* out)
             tmp(j) += (*in)(i) * weights_(i, j);
         }
     }
-    
+
     for (int i = 0; i < biases_.dims_[0]; i++)
     {
         tmp(i) += biases_(i);
@@ -166,6 +182,9 @@ bool KerasLayerDense::Apply(Tensor* in, Tensor* out)
 bool KerasLayerConvolution2d::LoadLayer(std::ifstream* file)
 {
     KASSERT(file, "Invalid file stream");
+
+    std::string name;
+    KASSERT(ReadString(file, &name, 64), "Expected layer name");
 
     unsigned int weights_i = 0;
     KASSERT(ReadUnsignedInt(file, &weights_i), "Expected weights_i");
@@ -278,6 +297,9 @@ bool KerasLayerElu::LoadLayer(std::ifstream* file)
 {
     KASSERT(file, "Invalid file stream");
 
+    std::string name;
+    KASSERT(ReadString(file, &name, 64), "Expected layer name");
+
     KASSERT(ReadFloat(file, &alpha_), "Failed to read alpha");
 
     return true;
@@ -304,6 +326,9 @@ bool KerasLayerElu::Apply(Tensor* in, Tensor* out)
 bool KerasLayerMaxPooling2d::LoadLayer(std::ifstream* file)
 {
     KASSERT(file, "Invalid file stream");
+
+    std::string name;
+    KASSERT(ReadString(file, &name, 64), "Expected layer name");
 
     KASSERT(ReadUnsignedInt(file, &pool_size_j_), "Expected pool size j");
     KASSERT(ReadUnsignedInt(file, &pool_size_k_), "Expected pool size k");
