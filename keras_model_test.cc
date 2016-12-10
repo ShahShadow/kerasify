@@ -5,22 +5,23 @@
 #include <iostream>
 
 #include "test_dense_1x1.h"
-#include "test_dense_10x1.h"
-#include "test_dense_2x2.h"
-#include "test_dense_10x10.h"
-#include "test_dense_10x10x10.h"
-#include "test_conv_2x2.h"
-#include "test_conv_3x3.h"
-#include "test_conv_3x3x3.h"
-#include "test_elu_10.h"
-#include "test_relu_10.h"
-#include "test_dense_relu_10.h"
-#include "test_conv_softplus_2x2.h"
-#include "test_maxpool2d_1x1.h"
-#include "test_maxpool2d_2x2.h"
-#include "test_maxpool2d_3x2x2.h"
-#include "test_maxpool2d_3x3x3.h"
-#include "test_benchmark.h"
+#include "test_functional_dense_1x1.h"
+// #include "test_dense_10x1.h"
+// #include "test_dense_2x2.h"
+// #include "test_dense_10x10.h"
+// #include "test_dense_10x10x10.h"
+// #include "test_conv_2x2.h"
+// #include "test_conv_3x3.h"
+// #include "test_conv_3x3x3.h"
+// #include "test_elu_10.h"
+// #include "test_relu_10.h"
+// #include "test_dense_relu_10.h"
+// #include "test_conv_softplus_2x2.h"
+// #include "test_maxpool2d_1x1.h"
+// #include "test_maxpool2d_2x2.h"
+// #include "test_maxpool2d_3x2x2.h"
+// #include "test_maxpool2d_3x3x3.h"
+// #include "test_benchmark.h"
 
 bool tensor_test()
 {
@@ -103,66 +104,69 @@ int main()
     if (!test_dense_1x1(&load_time, &apply_time))
         return 1;
 
-    if (!test_dense_10x1(&load_time, &apply_time))
+     if (!test_functional_dense_1x1(&load_time, &apply_time))
         return 1;
 
-    if (!test_dense_2x2(&load_time, &apply_time))
-        return 1;
+    // if (!test_dense_10x1(&load_time, &apply_time))
+    //     return 1;
 
-    if (!test_dense_10x10(&load_time, &apply_time))
-        return 1;
+    // if (!test_dense_2x2(&load_time, &apply_time))
+    //     return 1;
 
-    if (!test_dense_10x10x10(&load_time, &apply_time))
-        return 1;
+    // if (!test_dense_10x10(&load_time, &apply_time))
+    //     return 1;
 
-    if (!test_conv_2x2(&load_time, &apply_time))
-        return 1;
+    // if (!test_dense_10x10x10(&load_time, &apply_time))
+    //     return 1;
 
-    if (!test_conv_3x3(&load_time, &apply_time))
-        return 1;
+    // if (!test_conv_2x2(&load_time, &apply_time))
+    //     return 1;
 
-    if (!test_conv_3x3x3(&load_time, &apply_time))
-        return 1;
+    // if (!test_conv_3x3(&load_time, &apply_time))
+    //     return 1;
 
-    if (!test_elu_10(&load_time, &apply_time))
-        return 1;
+    // if (!test_conv_3x3x3(&load_time, &apply_time))
+    //     return 1;
 
-    if (!test_relu_10(&load_time, &apply_time))
-        return 1;
+    // if (!test_elu_10(&load_time, &apply_time))
+    //     return 1;
 
-    if (!test_dense_relu_10(&load_time, &apply_time))
-        return 1;
+    // if (!test_relu_10(&load_time, &apply_time))
+    //     return 1;
 
-    if (!test_conv_softplus_2x2(&load_time, &apply_time))
-        return 1;
+    // if (!test_dense_relu_10(&load_time, &apply_time))
+    //     return 1;
 
-    if (!test_maxpool2d_1x1(&load_time, &apply_time))
-        return 1;
+    // if (!test_conv_softplus_2x2(&load_time, &apply_time))
+    //     return 1;
 
-    if (!test_maxpool2d_2x2(&load_time, &apply_time))
-        return 1;
+    // if (!test_maxpool2d_1x1(&load_time, &apply_time))
+    //     return 1;
 
-    if (!test_maxpool2d_3x2x2(&load_time, &apply_time))
-        return 1;
+    // if (!test_maxpool2d_2x2(&load_time, &apply_time))
+    //     return 1;
 
-    if (!test_maxpool2d_3x3x3(&load_time, &apply_time))
-        return 1;
+    // if (!test_maxpool2d_3x2x2(&load_time, &apply_time))
+    //     return 1;
 
-    // Run benchmark 5 times and report duration.
-    double total_load_time = 0.0;
-    double total_apply_time = 0.0;
+    // if (!test_maxpool2d_3x3x3(&load_time, &apply_time))
+    //     return 1;
 
-    for (int i = 0; i < 5; i++)
-    {
-        if (!test_benchmark(&load_time, &apply_time))
-            return 1;
+    // // Run benchmark 5 times and report duration.
+    // double total_load_time = 0.0;
+    // double total_apply_time = 0.0;
 
-        total_load_time += load_time;
-        total_apply_time += apply_time;
-    }
+    // for (int i = 0; i < 5; i++)
+    // {
+    //     if (!test_benchmark(&load_time, &apply_time))
+    //         return 1;
 
-    printf("Benchmark network loads in %fs\n", total_load_time / 5);
-    printf("Benchmark network runs in %fs\n", total_apply_time / 5);
+    //     total_load_time += load_time;
+    //     total_apply_time += apply_time;
+    // }
+
+    // printf("Benchmark network loads in %fs\n", total_load_time / 5);
+    // printf("Benchmark network runs in %fs\n", total_apply_time / 5);
 
     return 0;
 }
