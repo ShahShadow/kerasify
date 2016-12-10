@@ -180,7 +180,9 @@ class Tensor {
 
 class KerasLayer {
  public:
-  explicit KerasLayer(const std::string& name) : name_(name) {}
+  explicit KerasLayer(const std::string& name,
+                      const std::vector<std::string>& inbound_layer_names)
+  : name_(name), inbound_layer_names_(inbound_layer_names) {}
 
   virtual ~KerasLayer() {}
 
@@ -188,13 +190,22 @@ class KerasLayer {
 
   virtual bool Apply(Tensor* in, Tensor* out) = 0;
 
+  const std::string& name() const { return name_; }
+
+  const std::vector<std::string>& inbound_layer_names() const {
+    return inbound_layer_names_;
+  }
+
  protected:
   const std::string name_;
+  const std::vector<std::string> inbound_layer_names_;
 };
 
 class KerasLayerInput : public KerasLayer {
  public:
-  explicit KerasLayerInput(const std::string& name) : KerasLayer(name) {}
+  explicit KerasLayerInput(const std::string& name,
+                           const std::vector<std::string>& inbound_layer_names)
+  : KerasLayer(name, inbound_layer_names) {}
 
   virtual ~KerasLayerInput() {}
 
@@ -209,9 +220,12 @@ class KerasLayerActivation : public KerasLayer {
  public:
   enum ActivationType { kLinear = 1, kRelu = 2, kSoftPlus = 3 };
 
-  KerasLayerActivation() : KerasLayerActivation("") {}
-  explicit KerasLayerActivation(const std::string& name)
-      : KerasLayer(name), activation_type_(ActivationType::kLinear) {}
+  KerasLayerActivation() : KerasLayerActivation("", {}) {}
+
+  explicit KerasLayerActivation(const std::string& name,
+                                const std::vector<std::string>& inbound_layer_names)
+      : KerasLayer(name, inbound_layer_names),
+      activation_type_(ActivationType::kLinear) {}
 
   virtual ~KerasLayerActivation() {}
 
@@ -225,7 +239,9 @@ class KerasLayerActivation : public KerasLayer {
 
 class KerasLayerDense : public KerasLayer {
  public:
-  explicit KerasLayerDense(const std::string& name) : KerasLayer(name) {}
+  explicit KerasLayerDense(const std::string& name,
+                           const std::vector<std::string>& inbound_layer_names)
+    : KerasLayer(name, inbound_layer_names) {}
 
   virtual ~KerasLayerDense() {}
 
@@ -242,8 +258,9 @@ class KerasLayerDense : public KerasLayer {
 
 class KerasLayerConvolution2d : public KerasLayer {
  public:
-  explicit KerasLayerConvolution2d(const std::string& name)
-      : KerasLayer(name) {}
+  explicit KerasLayerConvolution2d(const std::string& name,
+                                   const std::vector<std::string>& inbound_layer_names)
+      : KerasLayer(name, inbound_layer_names) {}
 
   virtual ~KerasLayerConvolution2d() {}
 
@@ -260,7 +277,9 @@ class KerasLayerConvolution2d : public KerasLayer {
 
 class KerasLayerFlatten : public KerasLayer {
  public:
-  explicit KerasLayerFlatten(const std::string& name) : KerasLayer(name) {}
+  explicit KerasLayerFlatten(const std::string& name,
+                             const std::vector<std::string>& inbound_layer_names)
+    : KerasLayer(name, inbound_layer_names) {}
 
   virtual ~KerasLayerFlatten() {}
 
@@ -273,8 +292,9 @@ class KerasLayerFlatten : public KerasLayer {
 
 class KerasLayerElu : public KerasLayer {
  public:
-  explicit KerasLayerElu(const std::string& name)
-      : KerasLayer(name), alpha_(1.0f) {}
+  explicit KerasLayerElu(const std::string& name,
+                         const std::vector<std::string>& inbound_layer_names)
+      : KerasLayer(name, inbound_layer_names), alpha_(1.0f) {}
 
   virtual ~KerasLayerElu() {}
 
@@ -288,8 +308,10 @@ class KerasLayerElu : public KerasLayer {
 
 class KerasLayerMaxPooling2d : public KerasLayer {
  public:
-  explicit KerasLayerMaxPooling2d(const std::string& name)
-      : KerasLayer(name), pool_size_j_(0), pool_size_k_(0) {}
+  explicit KerasLayerMaxPooling2d(const std::string& name,
+                                  const std::vector<std::string>& inbound_layer_names)
+      : KerasLayer(name, inbound_layer_names), pool_size_j_(0), pool_size_k_(0)
+      {}
 
   virtual ~KerasLayerMaxPooling2d() {}
 

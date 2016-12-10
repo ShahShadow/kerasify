@@ -62,23 +62,40 @@ def export_model(model, filename):
             else:
                 assert False, "Unsupported activation type: %s" % activation
 
-        num_layers = len(model.layers)
+        layers = []
+        layer_map = {}
+        for layer in model.layers:
+            for node in layer.inbound_nodes:
+                for inbound_layer in node.inbound_layers:
+                    if inbound_layer.name not in layer_map:
+                        layer_map[inbound_layer.name] = inbound_layer
+                        layers.append(inbound_layer)
+            layer_map[layer.name] = layer
+            layers.append(layer)
+
+
+        num_layers = len(layers)
         f.write(struct.pack('I', num_layers))
 
         write_strings(f, model.input_names)
         write_strings(f, model.output_names)
 
-        for layer in model.layers:
+        for layer in layers:
             layer_type = type(layer).__name__
 
-            name = layer.get_config()['name']
+            name = layer.name
             write_string(f, name)
+
+            inbound_layer_names = []
+            for node in layer.inbound_nodes:
+                for inbound_layer in node.inbound_layers:
+                    inbound_layer_names.append(inbound_layer.name)
+            write_strings(f, inbound_layer_names)
 
             if layer_type == 'Dense':
                 weights = layer.get_weights()[0]
                 biases = layer.get_weights()[1]
                 activation = layer.get_config()['activation']
-
 
                 f.write(struct.pack('I', LAYER_DENSE))
                 f.write(struct.pack('I', weights.shape[0]))

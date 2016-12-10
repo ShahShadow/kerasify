@@ -6,10 +6,12 @@
 
 #include "keras_model.h"
 
+#include <algorithm>
 #include <stdio.h>
 #include <cmath>
 #include <fstream>
 #include <limits>
+#include <unordered_map>
 #include <utility>
 
 bool ReadUnsignedInt(std::ifstream* file, unsigned int* i) {
@@ -374,12 +376,30 @@ bool KerasModel::LoadModel(const std::string& filename) {
 
   KASSERT(ReadStrings(&file, &input_layer_names_),
           "Expected input layer names");
+  for (const std::string& layer_name : input_layer_names_) {
+    printf("input: %s\n", layer_name.c_str());
+  }
+  KASSERT(!input_layer_names_.empty(),
+          "Expected at least one output layer name.")
   KASSERT(ReadStrings(&file, &output_layer_names_),
           "Expected output layer names");
+  KASSERT(!output_layer_names_.empty(),
+          "Expected at least one output layer name.");
+  for (const std::string& layer_name : output_layer_names_) {
+    printf("output: %s\n", layer_name.c_str());
+  }
 
   for (unsigned int i = 0; i < num_layers; i++) {
     std::string layer_name;
     KASSERT(ReadString(&file, &layer_name), "Expected layer name");
+
+    printf("Layer name: %s\n", layer_name.c_str());
+
+    std::vector<std::string> inbound_layer_names;
+    KASSERT(ReadStrings(&file, &inbound_layer_names), "Expected inbound layer names");
+    for (const std::string& inbound_layer_name : inbound_layer_names) {
+        printf("Inbound layer name: %s\n", inbound_layer_name.c_str());
+    }
 
     unsigned int layer_type = 0;
     KASSERT(ReadUnsignedInt(&file, &layer_type), "Expected layer type");
@@ -388,25 +408,25 @@ bool KerasModel::LoadModel(const std::string& filename) {
 
     switch (layer_type) {
       case kDense:
-        layer = new KerasLayerDense(layer_name);
+        layer = new KerasLayerDense(layer_name, inbound_layer_names);
         break;
       case kConvolution2d:
-        layer = new KerasLayerConvolution2d(layer_name);
+        layer = new KerasLayerConvolution2d(layer_name, inbound_layer_names);
         break;
       case kFlatten:
-        layer = new KerasLayerFlatten(layer_name);
+        layer = new KerasLayerFlatten(layer_name, inbound_layer_names);
         break;
       case kElu:
-        layer = new KerasLayerElu(layer_name);
+        layer = new KerasLayerElu(layer_name, inbound_layer_names);
         break;
       case kActivation:
-        layer = new KerasLayerActivation(layer_name);
+        layer = new KerasLayerActivation(layer_name, inbound_layer_names);
         break;
       case kMaxPooling2D:
-        layer = new KerasLayerMaxPooling2d(layer_name);
+        layer = new KerasLayerMaxPooling2d(layer_name, inbound_layer_names);
         break;
       case kInput:
-        layer = new KerasLayerInput(layer_name);
+        layer = new KerasLayerInput(layer_name, inbound_layer_names);
         break;
       default:
         break;
@@ -424,7 +444,42 @@ bool KerasModel::LoadModel(const std::string& filename) {
 bool KerasModel::Apply(Tensor* in, Tensor* out) {
   Tensor temp_in, temp_out;
 
-  for (unsigned int i = 0; i < layers_.size(); i++) {
+  KASSERT(output_layer_names_.size() == 1,
+          "Only single output models supported.");
+
+  KASSERT(input_layer_names_.size() == 1,
+          "Only single input models supported.");
+
+  std::unordered_map<std::string, KerasLayer*> layer_map;
+  for (KerasLayer* layer : layers_) {
+    layer_map[layer->name()] = layer;
+  }
+
+  // Find common nodes.
+  KerasLayer* output_layer = layer_map[output_layer_names_[0]];
+  KASSERT(output_layer != nullptr, "Layer not found: %s",
+          output_layer_names_[0].c_str());
+
+  std::vector<KerasLayer*> eval_layers;
+  KerasLayer* current_layer = output_layer;
+  while (current_layer != nullptr) {
+    eval_layers.push_back(current_layer);
+
+    if (!current_layer->inbound_layer_names().empty()) {
+        const std::string& inbound_layer_name = current_layer->inbound_layer_names()[0];
+        printf("Looking for inbound layer %s", inbound_layer_name.c_str());
+        auto layer_iter = layer_map.find(inbound_layer_name);
+        KASSERT(layer_iter != layer_map.end(), "Layer not found: %s",
+                inbound_layer_name.c_str());
+        current_layer = layer_iter->second;
+    } else {
+        break;
+    }
+  }
+
+  std::reverse(eval_layers.begin(), eval_layers.end());
+
+  for (unsigned int i = 0; i < eval_layers.size(); i++) {
     if (i == 0) {
       temp_in = *in;
     }
