@@ -62,11 +62,14 @@ def export_model(model, filename):
             else:
                 assert False, "Unsupported activation type: %s" % activation
 
+        # Sequential models hide the Input layer within the first layer's
+        # inbound nodes and does not appear in the layer list.
         layers = []
         layer_map = {}
         for layer in model.layers:
             for node in layer.inbound_nodes:
                 for inbound_layer in node.inbound_layers:
+                    #TODO(hemalshah): Handle dependent layers recursively.
                     if inbound_layer.name not in layer_map:
                         layer_map[inbound_layer.name] = inbound_layer
                         layers.append(inbound_layer)
