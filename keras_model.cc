@@ -6,8 +6,8 @@
 
 #include "keras_model.h"
 
-#include <algorithm>
 #include <stdio.h>
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <limits>
@@ -116,7 +116,8 @@ bool KerasLayerActivation::LoadLayer(std::ifstream* file) {
   return true;
 }
 
-bool KerasLayerActivation::Apply(const std::vector<Tensor*>& in_list, Tensor* out) {
+bool KerasLayerActivation::Apply(const std::vector<Tensor*>& in_list,
+                                 Tensor* out) {
   KASSERT(in_list.size() == 1, "Invalid input");
   KASSERT(out, "Invalid output");
 
@@ -196,7 +197,7 @@ bool KerasLayerDense::Apply(const std::vector<Tensor*>& in_list, Tensor* out) {
     tmp(i) += biases_(i);
   }
 
-  KASSERT(activation_.Apply(&tmp, out), "Failed to apply activation");
+  KASSERT(activation_.Apply({&tmp}, out), "Failed to apply activation");
 
   return true;
 }
@@ -238,7 +239,8 @@ bool KerasLayerConvolution2d::LoadLayer(std::ifstream* file) {
   return true;
 }
 
-bool KerasLayerConvolution2d::Apply(const std::vector<Tensor*>& in_list, Tensor* out) {
+bool KerasLayerConvolution2d::Apply(const std::vector<Tensor*>& in_list,
+                                    Tensor* out) {
   KASSERT(in_list.size() == 1, "Invalid input");
   KASSERT(out, "Invalid output");
 
@@ -282,7 +284,7 @@ bool KerasLayerConvolution2d::Apply(const std::vector<Tensor*>& in_list, Tensor*
     }
   }
 
-  KASSERT(activation_.Apply(&tmp, out), "Failed to apply activation");
+  KASSERT(activation_.Apply({&tmp}, out), "Failed to apply activation");
 
   return true;
 }
@@ -292,7 +294,8 @@ bool KerasLayerFlatten::LoadLayer(std::ifstream* file) {
   return true;
 }
 
-bool KerasLayerFlatten::Apply(const std::vector<Tensor*>& in_list, Tensor* out) {
+bool KerasLayerFlatten::Apply(const std::vector<Tensor*>& in_list,
+                              Tensor* out) {
   KASSERT(in_list.size() == 1, "Invalid input");
   KASSERT(out, "Invalid output");
 
@@ -334,7 +337,8 @@ bool KerasLayerMaxPooling2d::LoadLayer(std::ifstream* file) {
   return true;
 }
 
-bool KerasLayerMaxPooling2d::Apply(const std::vector<Tensor*>& in_list, Tensor* out) {
+bool KerasLayerMaxPooling2d::Apply(const std::vector<Tensor*>& in_list,
+                                   Tensor* out) {
   KASSERT(in_list.size() == 1, "Invalid input");
   KASSERT(out, "Invalid output");
 
@@ -402,9 +406,10 @@ bool KerasModel::LoadModel(const std::string& filename) {
     printf("Layer name: %s\n", layer_name.c_str());
 
     std::vector<std::string> inbound_layer_names;
-    KASSERT(ReadStrings(&file, &inbound_layer_names), "Expected inbound layer names");
+    KASSERT(ReadStrings(&file, &inbound_layer_names),
+            "Expected inbound layer names");
     for (const std::string& inbound_layer_name : inbound_layer_names) {
-        printf("Inbound layer name: %s\n", inbound_layer_name.c_str());
+      printf("Inbound layer name: %s\n", inbound_layer_name.c_str());
     }
 
     unsigned int layer_type = 0;
@@ -460,7 +465,6 @@ bool KerasModel::Apply(Tensor* in, Tensor* out) {
   return Apply({{input_layer_name, in}}, &out_map);
 }
 
-
 class KerasNode {
  public:
   explicit KerasNode(KerasLayer* layer) : layer_(layer) {}
@@ -474,16 +478,18 @@ class KerasNode {
       in_list.push_back(node->Compute());
     }
 
-    KASSERT(layer_->Apply(in_list, &result_), "Failed to apply layer %s", layer_->name());
+    KASSERT(layer_->Apply(in_list, &result_), "Failed to apply layer %s",
+            layer_->name());
     computed_ = true;
   }
 
   void AddInboundNodes(
-    const std::unordered_map<std::string, KerasLayer*>& layer_map,
-    std::unordered_map<std::string, std::shared_ptr<KerasNode>>* node_map) {
+      const std::unordered_map<std::string, KerasLayer*>& layer_map,
+      std::unordered_map<std::string, std::shared_ptr<KerasNode>>* node_map) {
     for (const std::string& layer_name : layer_->inbound_layer_names()) {
       if (node_map->find(layer_name) == node_map.end()) {
-        (*node_map)[layer_name] = std::make_shared<KerasNode>(layer_map[layer_name]);
+        (*node_map)[layer_name] =
+            std::make_shared<KerasNode>(layer_map[layer_name]);
       }
 
       inbound_nodes_.push_back(node_map[layer_name]);
@@ -495,9 +501,7 @@ class KerasNode {
     result_ = in;
   }
 
-  const std::string& name() const {
-    return layer_->name();
-  }
+  const std::string& name() const { return layer_->name(); }
 
  private:
   KerasLayer* layer_;

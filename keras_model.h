@@ -10,6 +10,7 @@
 #include <math.h>
 #include <chrono>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #define KASSERT(x, ...)                              \
@@ -184,7 +185,7 @@ class KerasLayer {
  public:
   explicit KerasLayer(const std::string& name,
                       const std::vector<std::string>& inbound_layer_names)
-  : name_(name), inbound_layer_names_(inbound_layer_names) {}
+      : name_(name), inbound_layer_names_(inbound_layer_names) {}
 
   virtual ~KerasLayer() = default;
 
@@ -207,7 +208,7 @@ class KerasLayerInput : public KerasLayer {
  public:
   explicit KerasLayerInput(const std::string& name,
                            const std::vector<std::string>& inbound_layer_names)
-  : KerasLayer(name, inbound_layer_names) {}
+      : KerasLayer(name, inbound_layer_names) {}
 
   virtual ~KerasLayerInput() = default;
 
@@ -224,17 +225,17 @@ class KerasLayerActivation : public KerasLayer {
 
   KerasLayerActivation() : KerasLayerActivation("", {}) {}
 
-  explicit KerasLayerActivation(const std::string& name,
-                                const std::vector<std::string>& inbound_layer_names)
+  explicit KerasLayerActivation(
+      const std::string& name,
+      const std::vector<std::string>& inbound_layer_names)
       : KerasLayer(name, inbound_layer_names),
-      activation_type_(ActivationType::kLinear) {}
+        activation_type_(ActivationType::kLinear) {}
 
   virtual ~KerasLayerActivation() = default;
 
   bool LoadLayer(std::ifstream* file) override;
 
   bool Apply(const std::vector<Tensor*>& in_list, Tensor* out) override;
-
 
  private:
   ActivationType activation_type_;
@@ -244,7 +245,7 @@ class KerasLayerDense : public KerasLayer {
  public:
   explicit KerasLayerDense(const std::string& name,
                            const std::vector<std::string>& inbound_layer_names)
-    : KerasLayer(name, inbound_layer_names) {}
+      : KerasLayer(name, inbound_layer_names) {}
 
   virtual ~KerasLayerDense() = default;
 
@@ -261,8 +262,9 @@ class KerasLayerDense : public KerasLayer {
 
 class KerasLayerConvolution2d : public KerasLayer {
  public:
-  explicit KerasLayerConvolution2d(const std::string& name,
-                                   const std::vector<std::string>& inbound_layer_names)
+  explicit KerasLayerConvolution2d(
+      const std::string& name,
+      const std::vector<std::string>& inbound_layer_names)
       : KerasLayer(name, inbound_layer_names) {}
 
   virtual ~KerasLayerConvolution2d() = default;
@@ -280,9 +282,10 @@ class KerasLayerConvolution2d : public KerasLayer {
 
 class KerasLayerFlatten : public KerasLayer {
  public:
-  explicit KerasLayerFlatten(const std::string& name,
-                             const std::vector<std::string>& inbound_layer_names)
-    : KerasLayer(name, inbound_layer_names) {}
+  explicit KerasLayerFlatten(
+      const std::string& name,
+      const std::vector<std::string>& inbound_layer_names)
+      : KerasLayer(name, inbound_layer_names) {}
 
   virtual ~KerasLayerFlatten() = default;
 
@@ -311,10 +314,12 @@ class KerasLayerElu : public KerasLayer {
 
 class KerasLayerMaxPooling2d : public KerasLayer {
  public:
-  explicit KerasLayerMaxPooling2d(const std::string& name,
-                                  const std::vector<std::string>& inbound_layer_names)
-      : KerasLayer(name, inbound_layer_names), pool_size_j_(0), pool_size_k_(0)
-      {}
+  explicit KerasLayerMaxPooling2d(
+      const std::string& name,
+      const std::vector<std::string>& inbound_layer_names)
+      : KerasLayer(name, inbound_layer_names),
+        pool_size_j_(0),
+        pool_size_k_(0) {}
 
   virtual ~KerasLayerMaxPooling2d() = default;
 
@@ -349,7 +354,7 @@ class KerasModel {
 
   bool LoadModel(const std::string& filename);
 
-  bool Apply(const Tensor& in, Tensor* out);
+  bool Apply(const Tensor* in, Tensor* out);
 
   bool Apply(const std::unordered_map<std::string, Tensor*>& in_map,
              std::unordered_map<std::string, Tensor*>* out_map);
@@ -382,4 +387,3 @@ class KerasTimer {
 }  // namespace kerasify
 
 #endif  // KERAS_MODEL_H_
-
