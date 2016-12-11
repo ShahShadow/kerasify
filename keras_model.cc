@@ -386,31 +386,20 @@ bool KerasModel::LoadModel(const std::string& filename) {
 
   KASSERT(ReadStrings(&file, &input_layer_names_),
           "Expected input layer names");
-  for (const std::string& layer_name : input_layer_names_) {
-    printf("input: %s\n", layer_name.c_str());
-  }
   KASSERT(!input_layer_names_.empty(),
           "Expected at least one output layer name.")
   KASSERT(ReadStrings(&file, &output_layer_names_),
           "Expected output layer names");
   KASSERT(!output_layer_names_.empty(),
           "Expected at least one output layer name.");
-  for (const std::string& layer_name : output_layer_names_) {
-    printf("output: %s\n", layer_name.c_str());
-  }
 
   for (unsigned int i = 0; i < num_layers; i++) {
     std::string layer_name;
     KASSERT(ReadString(&file, &layer_name), "Expected layer name");
 
-    printf("Layer name: %s\n", layer_name.c_str());
-
     std::vector<std::string> inbound_layer_names;
     KASSERT(ReadStrings(&file, &inbound_layer_names),
             "Expected inbound layer names");
-    for (const std::string& inbound_layer_name : inbound_layer_names) {
-      printf("Inbound layer name: %s\n", inbound_layer_name.c_str());
-    }
 
     unsigned int layer_type = 0;
     KASSERT(ReadUnsignedInt(&file, &layer_type), "Expected layer type");
