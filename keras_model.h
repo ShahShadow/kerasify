@@ -8,6 +8,7 @@
 #define KERAS_MODEL_H_
 
 #include <math.h>
+#include <memory>
 #include <chrono>
 #include <string>
 #include <unordered_map>
