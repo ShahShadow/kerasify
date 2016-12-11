@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <iostream>
 
+namespace kerasify {
 #include "test_dense_1x1.h"
 #include "test_functional_dense_1x1.h"
 // #include "test_dense_10x1.h"
@@ -22,6 +23,7 @@
 // #include "test_maxpool2d_3x2x2.h"
 // #include "test_maxpool2d_3x3x3.h"
 // #include "test_benchmark.h"
+
 
 bool tensor_test()
 {
@@ -170,3 +172,5 @@ int main()
 
     return 0;
 }
+
+}  // namespace kerasify

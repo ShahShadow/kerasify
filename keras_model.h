@@ -38,6 +38,8 @@
 #define KDEBUG(x, ...) ;
 #endif
 
+namespace kerasify {
+
 class Tensor {
  public:
   Tensor() {}
@@ -184,11 +186,11 @@ class KerasLayer {
                       const std::vector<std::string>& inbound_layer_names)
   : name_(name), inbound_layer_names_(inbound_layer_names) {}
 
-  virtual ~KerasLayer() {}
+  virtual ~KerasLayer() = default;
 
   virtual bool LoadLayer(std::ifstream* file) = 0;
 
-  virtual bool Apply(Tensor* in, Tensor* out) = 0;
+  virtual bool Apply(const std::vector<Tensor*>& in_list, Tensor* out) = 0;
 
   const std::string& name() const { return name_; }
 
@@ -207,11 +209,11 @@ class KerasLayerInput : public KerasLayer {
                            const std::vector<std::string>& inbound_layer_names)
   : KerasLayer(name, inbound_layer_names) {}
 
-  virtual ~KerasLayerInput() {}
+  virtual ~KerasLayerInput() = default;
 
-  virtual bool LoadLayer(std::ifstream* file);
+  bool LoadLayer(std::ifstream* file) override;
 
-  virtual bool Apply(Tensor* in, Tensor* out);
+  bool Apply(const std::vector<Tensor*>& in_list, Tensor* out) override;
 
  private:
 };
@@ -227,11 +229,12 @@ class KerasLayerActivation : public KerasLayer {
       : KerasLayer(name, inbound_layer_names),
       activation_type_(ActivationType::kLinear) {}
 
-  virtual ~KerasLayerActivation() {}
+  virtual ~KerasLayerActivation() = default;
 
-  virtual bool LoadLayer(std::ifstream* file);
+  bool LoadLayer(std::ifstream* file) override;
 
-  virtual bool Apply(Tensor* in, Tensor* out);
+  bool Apply(const std::vector<Tensor*>& in_list, Tensor* out) override;
+
 
  private:
   ActivationType activation_type_;
@@ -243,11 +246,11 @@ class KerasLayerDense : public KerasLayer {
                            const std::vector<std::string>& inbound_layer_names)
     : KerasLayer(name, inbound_layer_names) {}
 
-  virtual ~KerasLayerDense() {}
+  virtual ~KerasLayerDense() = default;
 
-  virtual bool LoadLayer(std::ifstream* file);
+  bool LoadLayer(std::ifstream* file) override;
 
-  virtual bool Apply(Tensor* in, Tensor* out);
+  bool Apply(const std::vector<Tensor*>& in_list, Tensor* out) override;
 
  private:
   Tensor weights_;
@@ -262,11 +265,11 @@ class KerasLayerConvolution2d : public KerasLayer {
                                    const std::vector<std::string>& inbound_layer_names)
       : KerasLayer(name, inbound_layer_names) {}
 
-  virtual ~KerasLayerConvolution2d() {}
+  virtual ~KerasLayerConvolution2d() = default;
 
-  virtual bool LoadLayer(std::ifstream* file);
+  bool LoadLayer(std::ifstream* file) override;
 
-  virtual bool Apply(Tensor* in, Tensor* out);
+  bool Apply(const std::vector<Tensor*>& in_list, Tensor* out) override;
 
  private:
   Tensor weights_;
@@ -281,11 +284,11 @@ class KerasLayerFlatten : public KerasLayer {
                              const std::vector<std::string>& inbound_layer_names)
     : KerasLayer(name, inbound_layer_names) {}
 
-  virtual ~KerasLayerFlatten() {}
+  virtual ~KerasLayerFlatten() = default;
 
-  virtual bool LoadLayer(std::ifstream* file);
+  bool LoadLayer(std::ifstream* file) override;
 
-  virtual bool Apply(Tensor* in, Tensor* out);
+  bool Apply(const std::vector<Tensor*>& in_list, Tensor* out) override;
 
  private:
 };
@@ -296,11 +299,11 @@ class KerasLayerElu : public KerasLayer {
                          const std::vector<std::string>& inbound_layer_names)
       : KerasLayer(name, inbound_layer_names), alpha_(1.0f) {}
 
-  virtual ~KerasLayerElu() {}
+  virtual ~KerasLayerElu() = default;
 
-  virtual bool LoadLayer(std::ifstream* file);
+  bool LoadLayer(std::ifstream* file) override;
 
-  virtual bool Apply(Tensor* in, Tensor* out);
+  bool Apply(const std::vector<Tensor*>& in_list, Tensor* out) override;
 
  private:
   float alpha_;
@@ -313,15 +316,15 @@ class KerasLayerMaxPooling2d : public KerasLayer {
       : KerasLayer(name, inbound_layer_names), pool_size_j_(0), pool_size_k_(0)
       {}
 
-  virtual ~KerasLayerMaxPooling2d() {}
+  virtual ~KerasLayerMaxPooling2d() = default;
 
-  virtual bool LoadLayer(std::ifstream* file);
+  bool LoadLayer(std::ifstream* file) override;
 
-  virtual bool Apply(Tensor* in, Tensor* out);
+  bool Apply(const std::vector<Tensor*>& in_list, Tensor* out) override;
 
  private:
-  unsigned int pool_size_j_;
-  unsigned int pool_size_k_;
+  const unsigned int pool_size_j_;
+  const unsigned int pool_size_k_;
 };
 
 class KerasModel {
@@ -336,7 +339,7 @@ class KerasModel {
     kInput = 7
   };
 
-  KerasModel() {}
+  KerasModel() = default;
 
   ~KerasModel() {
     for (unsigned int i = 0; i < layers_.size(); i++) {
@@ -346,7 +349,10 @@ class KerasModel {
 
   bool LoadModel(const std::string& filename);
 
-  bool Apply(Tensor* in, Tensor* out);
+  bool Apply(const Tensor& in, Tensor* out);
+
+  bool Apply(const std::unordered_map<std::string, Tensor*>& in_map,
+             std::unordered_map<std::string, Tensor*>* out_map);
 
  private:
   std::vector<KerasLayer*> layers_;
@@ -373,4 +379,7 @@ class KerasTimer {
   std::chrono::time_point<std::chrono::high_resolution_clock> start_;
 };
 
+}  // namespace kerasify
+
 #endif  // KERAS_MODEL_H_
+

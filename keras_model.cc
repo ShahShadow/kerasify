@@ -14,6 +14,8 @@
 #include <unordered_map>
 #include <utility>
 
+namespace kerasify {
+
 bool ReadUnsignedInt(std::ifstream* file, unsigned int* i) {
   KASSERT(file, "Invalid file stream");
   KASSERT(i, "Invalid pointer");
@@ -82,11 +84,11 @@ bool KerasLayerInput::LoadLayer(std::ifstream* file) {
   return true;
 }
 
-bool KerasLayerInput::Apply(Tensor* in, Tensor* out) {
-  KASSERT(in, "Invalid input");
+bool KerasLayerInput::Apply(const std::vector<Tensor*>& in_list, Tensor* out) {
+  KASSERT(in_list.size() == 1, "Invalid input");
   KASSERT(out, "Invalid output");
 
-  *out = *in;
+  *out = *in_list[0];
 
   return true;
 }
@@ -114,11 +116,11 @@ bool KerasLayerActivation::LoadLayer(std::ifstream* file) {
   return true;
 }
 
-bool KerasLayerActivation::Apply(Tensor* in, Tensor* out) {
-  KASSERT(in, "Invalid input");
+bool KerasLayerActivation::Apply(const std::vector<Tensor*>& in_list, Tensor* out) {
+  KASSERT(in_list.size() == 1, "Invalid input");
   KASSERT(out, "Invalid output");
 
-  *out = *in;
+  *out = *in_list[0];
 
   switch (activation_type_) {
     case kLinear:
@@ -170,9 +172,11 @@ bool KerasLayerDense::LoadLayer(std::ifstream* file) {
   return true;
 }
 
-bool KerasLayerDense::Apply(Tensor* in, Tensor* out) {
-  KASSERT(in, "Invalid input");
+bool KerasLayerDense::Apply(const std::vector<Tensor*>& in_list, Tensor* out) {
+  KASSERT(in_list.size() == 1, "Invalid input");
   KASSERT(out, "Invalid output");
+
+  Tensor* in = in_list[0];
   KASSERT(in->dims_.size() <= 2, "Invalid input dimensions");
 
   if (in->dims_.size() == 2) {
@@ -234,10 +238,11 @@ bool KerasLayerConvolution2d::LoadLayer(std::ifstream* file) {
   return true;
 }
 
-bool KerasLayerConvolution2d::Apply(Tensor* in, Tensor* out) {
-  KASSERT(in, "Invalid input");
+bool KerasLayerConvolution2d::Apply(const std::vector<Tensor*>& in_list, Tensor* out) {
+  KASSERT(in_list.size() == 1, "Invalid input");
   KASSERT(out, "Invalid output");
 
+  Tensor* in = in_list[0];
   KASSERT(in->dims_[0] == weights_.dims_[1],
           "Input 'depth' doesn't match kernel 'depth'");
 
@@ -287,11 +292,11 @@ bool KerasLayerFlatten::LoadLayer(std::ifstream* file) {
   return true;
 }
 
-bool KerasLayerFlatten::Apply(Tensor* in, Tensor* out) {
-  KASSERT(in, "Invalid input");
+bool KerasLayerFlatten::Apply(const std::vector<Tensor*>& in_list, Tensor* out) {
+  KASSERT(in_list.size() == 1, "Invalid input");
   KASSERT(out, "Invalid output");
 
-  *out = *in;
+  *out = *in_list[0];
   out->Flatten();
 
   return true;
@@ -305,11 +310,11 @@ bool KerasLayerElu::LoadLayer(std::ifstream* file) {
   return true;
 }
 
-bool KerasLayerElu::Apply(Tensor* in, Tensor* out) {
-  KASSERT(in, "Invalid input");
+bool KerasLayerElu::Apply(const std::vector<Tensor*>& in_list, Tensor* out) {
+  KASSERT(in_list.size() == 1, "Invalid input");
   KASSERT(out, "Invalid output");
 
-  *out = *in;
+  *out = *in_list[0];
 
   for (size_t i = 0; i < out->data_.size(); i++) {
     if (out->data_[i] < 0.0) {
@@ -329,10 +334,11 @@ bool KerasLayerMaxPooling2d::LoadLayer(std::ifstream* file) {
   return true;
 }
 
-bool KerasLayerMaxPooling2d::Apply(Tensor* in, Tensor* out) {
-  KASSERT(in, "Invalid input");
+bool KerasLayerMaxPooling2d::Apply(const std::vector<Tensor*>& in_list, Tensor* out) {
+  KASSERT(in_list.size() == 1, "Invalid input");
   KASSERT(out, "Invalid output");
 
+  Tensor* in = in_list[0];
   KASSERT(in->dims_.size() == 3, "Input must have 3 dimensions");
 
   Tensor tmp(in->dims_[0], in->dims_[1] / pool_size_j_,
@@ -442,55 +448,105 @@ bool KerasModel::LoadModel(const std::string& filename) {
 }
 
 bool KerasModel::Apply(Tensor* in, Tensor* out) {
-  Tensor temp_in, temp_out;
-
   KASSERT(output_layer_names_.size() == 1,
           "Only single output models supported.");
+  const std::string& output_layer_name = output_layer_names_[0];
 
   KASSERT(input_layer_names_.size() == 1,
           "Only single input models supported.");
+  const std::string& input_layer_name = input_layer_names_[0];
 
+  TensorMap out_map = {{output_layer_name, out}};
+  return Apply({{input_layer_name, in}}, &out_map);
+}
+
+
+class KerasNode {
+ public:
+  explicit KerasNode(KerasLayer* layer) : layer_(layer) {}
+  Tensor* Compute() {
+    if (computed_) {
+      return result_;
+    }
+
+    std::vector<Tensor*> in_list;
+    for (const std::shared_ptr<KerasNode>& node : inbound_nodes_) {
+      in_list.push_back(node->Compute());
+    }
+
+    KASSERT(layer_->Apply(in_list, &result_), "Failed to apply layer %s", layer_->name());
+    computed_ = true;
+  }
+
+  void AddInboundNodes(
+    const std::unordered_map<std::string, KerasLayer*>& layer_map,
+    std::unordered_map<std::string, std::shared_ptr<KerasNode>>* node_map) {
+    for (const std::string& layer_name : layer_->inbound_layer_names()) {
+      if (node_map->find(layer_name) == node_map.end()) {
+        (*node_map)[layer_name] = std::make_shared<KerasNode>(layer_map[layer_name]);
+      }
+
+      inbound_nodes_.push_back(node_map[layer_name]);
+    }
+  }
+
+  void SetResult(const Tensor& in) {
+    computed_ = true;
+    result_ = in;
+  }
+
+  const std::string& name() const {
+    return layer_->name();
+  }
+
+ private:
+  KerasLayer* layer_;
+  std::vector<std::shared_ptr<KerasNode>> inbound_nodes_;
+
+  Tensor result_;
+  bool computed_ = false;
+};
+
+bool KerasModel::Apply(std::unordered_map<std::string, Tensor*>& in_map,
+                       std::unordered_map<std::string, Tensor*>* out_map) {
+  KASSERT(!in_map.empty(), "No inputs provided");
+  KASSERT(out_map, "Invalid output map");
+  KASSERT(!out_map->empty(), "No outputs requested");
+
+  // Build layer map.
   std::unordered_map<std::string, KerasLayer*> layer_map;
   for (KerasLayer* layer : layers_) {
     layer_map[layer->name()] = layer;
   }
 
-  // Find common nodes.
-  KerasLayer* output_layer = layer_map[output_layer_names_[0]];
-  KASSERT(output_layer != nullptr, "Layer not found: %s",
-          output_layer_names_[0].c_str());
+  // Build node map.
+  std::unordered_map<std::string, std::shared_ptr<KerasNode>> node_map;
+  std::vector<std::shared_ptr<KerasNode>> out_nodes;
+  for (auto out_map_iter : out_map) {
+    const std::string& layer_name = out_map_iter->first;
 
-  std::vector<KerasLayer*> eval_layers;
-  KerasLayer* current_layer = output_layer;
-  while (current_layer != nullptr) {
-    eval_layers.push_back(current_layer);
-
-    if (!current_layer->inbound_layer_names().empty()) {
-        const std::string& inbound_layer_name = current_layer->inbound_layer_names()[0];
-        printf("Looking for inbound layer %s", inbound_layer_name.c_str());
-        auto layer_iter = layer_map.find(inbound_layer_name);
-        KASSERT(layer_iter != layer_map.end(), "Layer not found: %s",
-                inbound_layer_name.c_str());
-        current_layer = layer_iter->second;
-    } else {
-        break;
-    }
-  }
-
-  std::reverse(eval_layers.begin(), eval_layers.end());
-
-  for (unsigned int i = 0; i < eval_layers.size(); i++) {
-    if (i == 0) {
-      temp_in = *in;
+    // One out node may be dependent upon another.
+    if (node_map.find(layer_name) == node_map.end()) {
+      node_map[layer_name] = std::make_shared<KerasNode>(layer_map[layer_name]);
+      node_map[layer_name].AddInboundNodes(layer_map, &node_map);
     }
 
-    KASSERT(layers_[i]->Apply(&temp_in, &temp_out), "Failed to apply layer %d",
-            i);
-
-    temp_in = temp_out;
+    out_nodes.push_back(node_map[layer_name]);
   }
 
-  *out = temp_out;
+  // Set input on input nodes in graph.
+  for (auto in_map_iter : in_map) {
+    const std::string& layer_name = in_map_iter->first;
+    Tensor* in = in_map_iter->second;
+    node_map[layer_name]->SetResult(in);
+  }
+
+  // Compute output nodes.
+  for (const std::shared_ptr<KerasNode>& out_node : out_nodes) {
+    *(out_map[out_node.name()]) = out_node->Compute();
+  }
 
   return true;
 }
+
+}  // namespace kerasify
