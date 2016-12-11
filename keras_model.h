@@ -180,6 +180,7 @@ class Tensor {
   std::vector<int> dims_;
   std::vector<float> data_;
 };
+using TensorMap = std::unordered_map<std::string, Tensor*>;
 
 class KerasLayer {
  public:
@@ -203,6 +204,8 @@ class KerasLayer {
   const std::string name_;
   const std::vector<std::string> inbound_layer_names_;
 };
+
+using KerasLayerMap = std::unordered_map<std::string, KerasLayer*>;
 
 class KerasLayerInput : public KerasLayer {
  public:
@@ -328,8 +331,52 @@ class KerasLayerMaxPooling2d : public KerasLayer {
   bool Apply(const std::vector<Tensor*>& in_list, Tensor* out) override;
 
  private:
-  const unsigned int pool_size_j_;
-  const unsigned int pool_size_k_;
+  unsigned int pool_size_j_;
+  unsigned int pool_size_k_;
+};
+
+
+class KerasGraph {
+ public:
+  class KerasNode {
+   public:
+    explicit KerasNode(KerasLayer* layer) : layer_(layer) {}
+
+    bool Initialize(KerasGraph* graph);
+    bool Compute();
+
+    void SetResult(const Tensor& in) {
+      result_.reset(new Tensor());
+      *result_ = in;
+    }
+
+    bool Clear() {
+      result_.reset(nullptr);
+      return true;
+    }
+
+    const std::string& name() const { return layer_->name(); }
+    Tensor* result() const { return result_.get(); }
+
+   private:
+    KerasLayer* layer_;
+    std::vector<KerasNode*> inbound_nodes_;
+    std::unique_ptr<Tensor> result_;
+  };
+
+
+  KerasGraph() = default;
+
+  bool Initialize(const std::vector<KerasLayer*>& layers);
+
+  bool Evaluate(TensorMap& in_map, TensorMap* out_map);
+
+ protected:
+  KerasGraph::KerasNode* GetOrCreateNode(const std::string& layer_name);
+
+ private:
+  KerasLayerMap layer_map_;
+  std::unordered_map<std::string, std::unique_ptr<KerasNode>> node_map_;
 };
 
 class KerasModel {
@@ -354,15 +401,16 @@ class KerasModel {
 
   bool LoadModel(const std::string& filename);
 
-  bool Apply(const Tensor* in, Tensor* out);
+  bool Apply(Tensor* in, Tensor* out);
 
-  bool Apply(const std::unordered_map<std::string, Tensor*>& in_map,
-             std::unordered_map<std::string, Tensor*>* out_map);
+  bool Apply(TensorMap& in_map, TensorMap* out_map);
 
  private:
   std::vector<KerasLayer*> layers_;
   std::vector<std::string> input_layer_names_;
   std::vector<std::string> output_layer_names_;
+
+  KerasGraph graph_;
 };
 
 class KerasTimer {

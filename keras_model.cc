@@ -447,6 +447,8 @@ bool KerasModel::LoadModel(const std::string& filename) {
 
     KASSERT(layer->LoadLayer(&file), "Failed to load layer %d", i);
     layers_.push_back(layer);
+
+    graph_.Initialize(layers_);
   }
 
   return true;
@@ -461,96 +463,87 @@ bool KerasModel::Apply(Tensor* in, Tensor* out) {
           "Only single input models supported.");
   const std::string& input_layer_name = input_layer_names_[0];
 
-  TensorMap out_map = {{output_layer_name, out}};
-  return Apply({{input_layer_name, in}}, &out_map);
+  std::unordered_map<std::string, Tensor*> in_map = {{input_layer_name, in}};
+  std::unordered_map<std::string, Tensor*> out_map = {{output_layer_name, out}};
+  return Apply(in_map, &out_map);
 }
 
-class KerasNode {
- public:
-  explicit KerasNode(KerasLayer* layer) : layer_(layer) {}
-  Tensor* Compute() {
-    if (computed_) {
-      return result_;
-    }
 
-    std::vector<Tensor*> in_list;
-    for (const std::shared_ptr<KerasNode>& node : inbound_nodes_) {
-      in_list.push_back(node->Compute());
-    }
+bool KerasGraph::KerasNode::Initialize(KerasGraph* graph) {
+  for (const std::string& layer_name : layer_->inbound_layer_names()) {
+    inbound_nodes_.push_back(graph->GetOrCreateNode(layer_name));
+  }
+  return true;
+}
 
-    KASSERT(layer_->Apply(in_list, &result_), "Failed to apply layer %s",
-            layer_->name());
-    computed_ = true;
+bool KerasGraph::KerasNode::Compute() {
+  if (result_ != nullptr) {
+    return true;
   }
 
-  void AddInboundNodes(
-      const std::unordered_map<std::string, KerasLayer*>& layer_map,
-      std::unordered_map<std::string, std::shared_ptr<KerasNode>>* node_map) {
-    for (const std::string& layer_name : layer_->inbound_layer_names()) {
-      if (node_map->find(layer_name) == node_map.end()) {
-        (*node_map)[layer_name] =
-            std::make_shared<KerasNode>(layer_map[layer_name]);
-      }
-
-      inbound_nodes_.push_back(node_map[layer_name]);
-    }
+  std::vector<Tensor*> in_list;
+  for (KerasNode* node : inbound_nodes_) {
+    KASSERT(node->Compute(), "Unable to compute node");
+    in_list.push_back(node->result());
   }
 
-  void SetResult(const Tensor& in) {
-    computed_ = true;
-    result_ = in;
+  KASSERT(layer_->Apply(in_list, result_.get()), "Failed to apply layer %s",
+          layer_->name().c_str());
+  return true;
+}
+
+bool KerasGraph::Initialize(const std::vector<KerasLayer*>& layers) {
+  // Build layer map.
+  for (KerasLayer* layer : layers) {
+    layer_map_[layer->name()] = layer;
   }
 
-  const std::string& name() const { return layer_->name(); }
+  return true;
+}
 
- private:
-  KerasLayer* layer_;
-  std::vector<std::shared_ptr<KerasNode>> inbound_nodes_;
+KerasGraph::KerasNode* KerasGraph::GetOrCreateNode(const std::string& layer_name) {
+  // One out node may be dependent upon another.
+  if (node_map_.find(layer_name) == node_map_.end()) {
+    KerasLayer* layer = layer_map_[layer_name];
+    node_map_[layer_name] = std::unique_ptr<KerasNode>(new KerasNode(layer));
+    node_map_[layer_name]->Initialize(this);
+  }
 
-  Tensor result_;
-  bool computed_ = false;
-};
+  return node_map_[layer_name].get();
+}
 
-bool KerasModel::Apply(std::unordered_map<std::string, Tensor*>& in_map,
-                       std::unordered_map<std::string, Tensor*>* out_map) {
+bool KerasGraph::Evaluate(TensorMap& in_map, TensorMap* out_map) {
+  // Set input on input nodes in graph.
+  for (auto in_map_iter : in_map) {
+    const std::string& layer_name = in_map_iter.first;
+    Tensor* in = in_map_iter.second;
+
+    KerasNode* in_node = GetOrCreateNode(layer_name);
+    in_node->SetResult(*in);
+  }
+
+  // Compute output nodes.
+  for (auto out_map_iter : *out_map) {
+    const std::string& layer_name = out_map_iter.first;
+    Tensor* out = out_map_iter.second;
+    KerasNode* out_node = GetOrCreateNode(layer_name);
+    KASSERT(out_node->Compute(),"Unable to compute node for %s", layer_name.c_str());
+    *out = *out_node->result();
+  }
+
+  // Clear computation nodes.
+  for (const auto& node_pair : node_map_) {
+    KASSERT(node_pair.second->Clear(), "Unable to clear node for compute");
+  }
+  return true;
+}
+
+bool KerasModel::Apply(TensorMap& in_map, TensorMap* out_map) {
   KASSERT(!in_map.empty(), "No inputs provided");
   KASSERT(out_map, "Invalid output map");
   KASSERT(!out_map->empty(), "No outputs requested");
 
-  // Build layer map.
-  std::unordered_map<std::string, KerasLayer*> layer_map;
-  for (KerasLayer* layer : layers_) {
-    layer_map[layer->name()] = layer;
-  }
-
-  // Build node map.
-  std::unordered_map<std::string, std::shared_ptr<KerasNode>> node_map;
-  std::vector<std::shared_ptr<KerasNode>> out_nodes;
-  for (auto out_map_iter : out_map) {
-    const std::string& layer_name = out_map_iter->first;
-
-    // One out node may be dependent upon another.
-    if (node_map.find(layer_name) == node_map.end()) {
-      node_map[layer_name] = std::make_shared<KerasNode>(layer_map[layer_name]);
-      node_map[layer_name].AddInboundNodes(layer_map, &node_map);
-    }
-
-    out_nodes.push_back(node_map[layer_name]);
-  }
-
-  // Set input on input nodes in graph.
-  for (auto in_map_iter : in_map) {
-    const std::string& layer_name = in_map_iter->first;
-    Tensor* in = in_map_iter->second;
-    node_map[layer_name]->SetResult(in);
-  }
-
-  // Compute output nodes.
-  for (const std::shared_ptr<KerasNode>& out_node : out_nodes) {
-    *(out_map[out_node.name()]) = out_node->Compute();
-  }
-
-  return true;
+  return graph_.Evaluate(in_map, out_map);
 }
 
 }  // namespace kerasify
