@@ -468,7 +468,6 @@ bool KerasModel::Apply(Tensor* in, Tensor* out) {
   return Apply(in_map, &out_map);
 }
 
-
 bool KerasGraph::KerasNode::Initialize(KerasGraph* graph) {
   for (const std::string& layer_name : layer_->inbound_layer_names()) {
     inbound_nodes_.push_back(graph->GetOrCreateNode(layer_name));
@@ -487,6 +486,7 @@ bool KerasGraph::KerasNode::Compute() {
     in_list.push_back(node->result());
   }
 
+  result_.reset(new Tensor());
   KASSERT(layer_->Apply(in_list, result_.get()), "Failed to apply layer %s",
           layer_->name().c_str());
   return true;
@@ -501,7 +501,8 @@ bool KerasGraph::Initialize(const std::vector<KerasLayer*>& layers) {
   return true;
 }
 
-KerasGraph::KerasNode* KerasGraph::GetOrCreateNode(const std::string& layer_name) {
+KerasGraph::KerasNode* KerasGraph::GetOrCreateNode(
+    const std::string& layer_name) {
   // One out node may be dependent upon another.
   if (node_map_.find(layer_name) == node_map_.end()) {
     KerasLayer* layer = layer_map_[layer_name];
@@ -527,7 +528,8 @@ bool KerasGraph::Evaluate(TensorMap& in_map, TensorMap* out_map) {
     const std::string& layer_name = out_map_iter.first;
     Tensor* out = out_map_iter.second;
     KerasNode* out_node = GetOrCreateNode(layer_name);
-    KASSERT(out_node->Compute(),"Unable to compute node for %s", layer_name.c_str());
+    KASSERT(out_node->Compute(), "Unable to compute node for %s",
+            layer_name.c_str());
     *out = *out_node->result();
   }
 
