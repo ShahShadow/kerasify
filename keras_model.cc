@@ -93,6 +93,25 @@ bool KerasLayerInput::Apply(const std::vector<Tensor*>& in_list, Tensor* out) {
   return true;
 }
 
+bool KerasLayerMerge::LoadLayer(std::ifstream* file) {
+  KASSERT(file, "Invalid file stream");
+
+  return true;
+}
+
+bool KerasLayerMerge::Apply(const std::vector<Tensor*>& in_list, Tensor* out) {
+  KASSERT(!in_list.empty(), "Invalid input");
+  KASSERT(out, "Invalid output");
+
+  Tensor tmp = *in_list[0];
+  for (unsigned int i = 1; i < in_list.size(); i++) {
+    KASSERT(tmp.Append(*in_list[i]), "Unable to append tensor");
+  }
+
+  *out = tmp;
+  return true;
+}
+
 bool KerasLayerActivation::LoadLayer(std::ifstream* file) {
   KASSERT(file, "Invalid file stream");
 
@@ -427,6 +446,9 @@ bool KerasModel::LoadModel(const std::string& filename) {
         break;
       case kInput:
         layer = new KerasLayerInput(layer_name, inbound_layer_names);
+        break;
+      case kMerge:
+        layer = new KerasLayerMerge(layer_name, inbound_layer_names);
         break;
       default:
         break;

@@ -74,6 +74,36 @@ class Tensor {
     data_.resize(i * j * k * l);
   }
 
+  const std::vector<int>& dims() const {
+    return dims_;
+  }
+
+  inline bool Append(const Tensor& other) {
+    // Check for compatible dimensionality.
+    if (dims_.size() != other.dims_.size()) {
+        return false;
+    }
+
+    // Skip the batch first dimension. All other dimensions should match.
+    for (unsigned int i = 1; i < dims_.size(); i++) {
+        if (dims_[i] != other.dims_[i]) {
+            return false;
+        }
+    }
+
+    // Merge.
+    const unsigned int initial_data_size = data_.size();
+    dims_[0] += other.dims_[0];  // Update dimensions.
+    data_.resize(initial_data_size + other.data_.size());
+
+    unsigned int i = initial_data_size;
+    for (const auto value : other.data_) {
+        data_[i] = value;
+        i++;
+    }
+    return true;
+  }
+
   inline void Flatten() {
     KDEBUG(dims_.size() > 0, "Invalid tensor");
 
@@ -219,8 +249,19 @@ class KerasLayerInput : public KerasLayer {
   bool LoadLayer(std::ifstream* file) override;
 
   bool Apply(const std::vector<Tensor*>& in_list, Tensor* out) override;
+};
 
- private:
+class KerasLayerMerge : public KerasLayer {
+public:
+  explicit KerasLayerMerge(const std::string& name,
+                           const std::vector<std::string>& inbound_layer_names)
+      : KerasLayer(name, inbound_layer_names) {}
+
+  virtual ~KerasLayerMerge() = default;
+
+  bool LoadLayer(std::ifstream* file) override;
+
+  bool Apply(const std::vector<Tensor*>& in_list, Tensor* out) override;
 };
 
 class KerasLayerActivation : public KerasLayer {
@@ -389,7 +430,8 @@ class KerasModel {
     kElu = 4,
     kActivation = 5,
     kMaxPooling2D = 6,
-    kInput = 7
+    kInput = 7,
+    kMerge = 8
   };
 
   KerasModel() = default;

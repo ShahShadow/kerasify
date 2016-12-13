@@ -8,6 +8,7 @@ LAYER_ELU = 4
 LAYER_ACTIVATION = 5
 LAYER_MAXPOOLING2D = 6
 LAYER_INPUT = 7
+LAYER_MERGE = 8
 
 ACTIVATION_LINEAR = 1
 ACTIVATION_RELU = 2
@@ -115,6 +116,9 @@ def export_model(model, filename):
 
             elif layer_type == 'InputLayer':
                 f.write(struct.pack('I', LAYER_INPUT))
+
+            elif layer_type == 'Merge':
+                f.write(struct.pack('I', LAYER_MERGE))
 
             elif layer_type == 'Convolution2D':
                 assert layer.border_mode == 'valid', "Only border_mode=valid is implemented"
