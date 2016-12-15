@@ -13,12 +13,13 @@ namespace kerasify {
 // #include "test_dense_10x1.h"
 // #include "test_dense_10x10.h"
 // #include "test_dense_10x10x10.h"
-#include "test_dense_1x1.h"
+// #include "test_dense_1x1.h"
 // #include "test_dense_2x2.h"
 // #include "test_dense_relu_10.h"
 // #include "test_elu_10.h"
-#include "test_functional_dense_1x1.h"
-#include "test_functional_dense_1x1_merge.h"
+// #include "test_functional_dense_1x1.h"
+// #include "test_functional_dense_1x1_merge.h"
+#include "test_functional_dense_1x1_merge_extended.h"
 // #include "test_maxpool2d_1x1.h"
 // #include "test_maxpool2d_2x2.h"
 // #include "test_maxpool2d_3x2x2.h"
@@ -100,13 +101,15 @@ int main() {
   double load_time = 0.0;
   double apply_time = 0.0;
 
-  if (!kerasify::tensor_test()) return 1;
+  // if (!kerasify::tensor_test()) return 1;
 
-  if (!kerasify::test_dense_1x1(&load_time, &apply_time)) return 1;
+  // if (!kerasify::test_dense_1x1(&load_time, &apply_time)) return 1;
 
-  if (!kerasify::test_functional_dense_1x1(&load_time, &apply_time)) return 1;
+  // if (!kerasify::test_functional_dense_1x1(&load_time, &apply_time)) return 1;
 
-  if (!kerasify::test_functional_dense_1x1_merge(&load_time, &apply_time)) return 1;
+  // if (!kerasify::test_functional_dense_1x1_merge(&load_time, &apply_time)) return 1;
+
+  if (!kerasify::test_functional_dense_1x1_merge_extended(&load_time, &apply_time)) return 1;
 
   // if (!kerasify::test_dense_10x1(&load_time, &apply_time)) return 1;
 

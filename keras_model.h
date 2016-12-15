@@ -46,6 +46,11 @@ class Tensor {
  public:
   Tensor() {}
 
+  Tensor(const std::vector<int>& dims, const std::vector<float>& data) :
+    dims_(dims), data_(data) {
+    KDEBUG(!dims.empty(), "Invalid dimensions");
+  }
+
   Tensor(int i) { Resize(i); }
 
   Tensor(int i, int j) { Resize(i, j); }

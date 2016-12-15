@@ -1,7 +1,9 @@
 import numpy as np
 import pprint
 
+from keras.models import Model
 from keras.models import Sequential
+from keras.layers import merge, Input
 from keras.layers import Convolution2D, Dense, Flatten, Activation, MaxPooling2D
 from keras.layers.advanced_activations import ELU
 
@@ -79,48 +81,128 @@ def output_testcase(model, test_x, test_y, name, eps):
         f.write(TEST_CASE % (name, name, x_shape, x_data, y_shape, y_data, name, eps))
 
 
+TEST_CASE_EX = '''
+bool test_%s(double* load_time, double* apply_time)
+{
+    printf("TEST %s\\n");
 
-''' Dense 1x1 '''
-test_x = np.arange(10)
-test_y = test_x * 10 + 1
-model = Sequential()
-model.add(Dense(1, input_dim=1))
+    KASSERT(load_time, "Invalid double");
+    KASSERT(apply_time, "Invalid double");
 
-output_testcase(model, test_x, test_y, 'dense_1x1', '1e-6')
+    std::vector<Tensor> in_tensors = {%s};
+    std::vector<Tensor> expected = {%s};
 
-''' Functional Dense 1x1 '''
-from keras.layers import Dense, Flatten, Convolution2D, MaxPooling2D
-from keras.layers import merge, Input
-from keras.layers.advanced_activations import ELU
-from keras.models import Model
+    KerasTimer load_timer;
+    load_timer.Start();
 
-test_x = np.arange(10)
-test_y = test_x * 10 + 1
+    KerasModel model;
+    KASSERT(model.LoadModel("test_%s.model"), "Failed to load model");
 
-input = Input(name='in1', shape=(1,))
-output = Dense(1, name='out1')(input)
-model = Model(input=input, output=output)
+    *load_time = load_timer.Stop();
 
-output_testcase(model, test_x, test_y, 'functional_dense_1x1', '1e-6')
+    KerasTimer apply_timer;
+    apply_timer.Start();
 
-''' Functional Dense 1x1 Merge'''
-from keras.layers import Dense, Flatten, Convolution2D, MaxPooling2D
-from keras.layers import merge, Input
-from keras.layers.advanced_activations import ELU
-from keras.models import Model
+    std::vector<Tensor> predicted = expected;
+    TensorMap in;
+    for (unsigned int i = 0; i < in_tensors.size(); i++)
+    {
+        in["in" + std::to_string(i)] = &(in_tensors[i]);
+    }
+    TensorMap out;
+    for (unsigned int i = 0; i < predicted.size(); i++)
+    {
+        out["out" + std::to_string(i)] = &(predicted[i]);
+    }
+    KASSERT(model.Apply(in, &out), "Failed to apply");
 
-test_x = np.arange(10)
-test_y = test_x * 10 + 1
+    *apply_time = apply_timer.Stop();
 
-input = Input(name='in1', shape=(1,))
-h1 = Dense(1, name='hidden1')(input)
+    for (unsigned int i = 0; i < expected.size(); i++)
+    {
+        Tensor& expect = expected[i];
+        Tensor& predict = predicted[i];
+        for (int j = 0; j < expect.dims_[0]; j++)
+        {
+            KASSERT_EQ(expect(j), predict(j), %s);
+        }
+    }
+
+    return true;
+}
+'''
+
+def c_array_init(a):
+    shape, s = c_array(a)
+    shape = shape.replace('(', '{').replace(')', '}')
+    return shape, s
+
+def output_testcase_ex(model, test_x_list, test_y_list, name, eps):
+    print "Processing %s" % name
+    model.compile(loss='mean_squared_error', optimizer='adamax')
+    model.fit(test_x_list, test_y_list, nb_epoch=1, verbose=False)
+    predict_y_list = model.predict(test_x_list)
+    print model.summary()
+
+    export_model(model, 'test_%s.model' % name)
+
+    with open('test_%s.h' % name, 'w') as f:
+        x = ["{%s, %s}" % c_array_init(test_x) for test_x in test_x_list]
+        x = ','.join(x)
+        y = ["{%s, %s}" % c_array_init(predict_y) for predict_y in predict_y_list]
+        y = ','.join(y)
+
+        f.write(TEST_CASE_EX % (name, name, x, y, name, eps))
+
+
+# ''' Dense 1x1 '''
+# test_x = np.arange(10)
+# test_y = test_x * 10 + 1
+# model = Sequential()
+# model.add(Dense(1, input_dim=1))
+
+# output_testcase(model, test_x, test_y, 'dense_1x1', '1e-6')
+
+# ''' Functional Dense 1x1 '''
+# test_x = np.arange(10)
+# test_y = test_x * 10 + 1
+
+# input = Input(name='in1', shape=(1,))
+# output = Dense(1, name='out1')(input)
+# model = Model(input=input, output=output)
+
+# output_testcase(model, test_x, test_y, 'functional_dense_1x1', '1e-6')
+
+# ''' Functional Dense 1x1 Merge'''
+# test_x = np.arange(10)
+# test_y = test_x * 10 + 1
+
+# input = Input(name='in1', shape=(1,))
+# h1 = Dense(1, name='hidden1')(input)
+# h2 = Dense(1, name='hidden2')(h1)
+# hA = Dense(1, name='hiddenA')(input)
+# m =  merge([h2, hA], mode='concat', concat_axis=-1)
+# output = Dense(1, name='out1')(m)
+# model = Model(input=input, output=output)
+
+# output_testcase(model, test_x, test_y, 'functional_dense_1x1_merge', '1e-6')
+
+''' Functional Dense 1x1 Extended'''
+test_x_list = [np.arange(10), np.arange(10)]
+test_y_list = [test_x_list[0] * 10 + 1, test_x_list[1] * 5 + 2]
+
+input0 = Input(name='in0', shape=(1,))
+input1 = Input(name='in1', shape=(1,))
+h1 = Dense(1, name='hidden1')(input0)
 h2 = Dense(1, name='hidden2')(h1)
-hA = Dense(1, name='hiddenA')(input)
-m =  merge([h2, hA], mode='concat', concat_axis=-1)
-output = Dense(1, name='out1')(m)
-model = Model(input=input, output=output)
 
-output_testcase(model, test_x, test_y, 'functional_dense_1x1_merge', '1e-6')
+hA = Dense(1, name='hiddenA')(input1)
+m =  merge([h2, hA], mode='concat', concat_axis=-1)
+output0 = Dense(1, name='out0')(m)
+output1 = Dense(1, name='out1')(m)
+model = Model(input=[input0, input1], output=[output0, output1])
+
+output_testcase_ex(model, test_x_list, test_y_list, 'functional_dense_1x1_merge_extended', '1e-6')
 
 # ''' Dense 10x1 '''
 # test_x = np.random.rand(10, 10).astype('f')
