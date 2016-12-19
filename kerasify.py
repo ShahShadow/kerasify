@@ -118,6 +118,8 @@ def export_model(model, filename):
                 f.write(struct.pack('I', LAYER_INPUT))
 
             elif layer_type == 'Merge':
+                assert layer.concat_axis == -1, "Only concatenation along batch dimensions implemented"
+                assert layer.mode == 'concat', "Only concatenation implemented"
                 f.write(struct.pack('I', LAYER_MERGE))
 
             elif layer_type == 'Convolution2D':
