@@ -8,8 +8,8 @@
 #define KERAS_MODEL_H_
 
 #include <math.h>
-#include <memory>
 #include <chrono>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -46,8 +46,8 @@ class Tensor {
  public:
   Tensor() {}
 
-  Tensor(const std::vector<int>& dims, const std::vector<float>& data) :
-    dims_(dims), data_(data) {
+  Tensor(const std::vector<int>& dims, const std::vector<float>& data)
+      : dims_(dims), data_(data) {
     KDEBUG(!dims.empty(), "Invalid dimensions");
   }
 
@@ -79,32 +79,31 @@ class Tensor {
     data_.resize(i * j * k * l);
   }
 
-  const std::vector<int>& dims() const {
-    return dims_;
-  }
+  const std::vector<int>& dims() const { return dims_; }
 
+  // Concatenate along first dimension.
   inline bool Append(const Tensor& other) {
     // Check for compatible dimensionality.
     if (dims_.size() != other.dims_.size()) {
-        return false;
+      return false;
     }
 
     // Skip the batch first dimension. All other dimensions should match.
     for (unsigned int i = 1; i < dims_.size(); i++) {
-        if (dims_[i] != other.dims_[i]) {
-            return false;
-        }
+      if (dims_[i] != other.dims_[i]) {
+        return false;
+      }
     }
 
-    // Merge.
+    // Concatenate.
     const unsigned int initial_data_size = data_.size();
     dims_[0] += other.dims_[0];  // Update dimensions.
     data_.resize(initial_data_size + other.data_.size());
 
     unsigned int i = initial_data_size;
     for (const auto value : other.data_) {
-        data_[i] = value;
-        i++;
+      data_[i] = value;
+      i++;
     }
     return true;
   }
@@ -257,7 +256,7 @@ class KerasLayerInput : public KerasLayer {
 };
 
 class KerasLayerMerge : public KerasLayer {
-public:
+ public:
   explicit KerasLayerMerge(const std::string& name,
                            const std::vector<std::string>& inbound_layer_names)
       : KerasLayer(name, inbound_layer_names) {}
@@ -382,7 +381,8 @@ class KerasLayerMaxPooling2d : public KerasLayer {
   unsigned int pool_size_k_;
 };
 
-
+// Represents the graph of layer evaluations needed to materialize one or more
+// output layers from one or more inputs to the model.
 class KerasGraph {
  public:
   class KerasNode {
@@ -410,7 +410,6 @@ class KerasGraph {
     std::vector<KerasNode*> inbound_nodes_;
     std::unique_ptr<Tensor> result_;
   };
-
 
   KerasGraph() = default;
 

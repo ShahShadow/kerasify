@@ -17,13 +17,14 @@ namespace kerasify {
 #include "test_dense_2x2.h"
 #include "test_dense_relu_10.h"
 #include "test_elu_10.h"
-#include "test_functional_dense_1x1.h"
-#include "test_functional_dense_1x1_merge.h"
-#include "test_functional_dense_1x1_multi_in.h"
-#include "test_functional_dense_1x1_multi_in_out.h"
-#include "test_functional_dense_1x1_multi_out.h"
-#include "test_functional_conv_2x2.h"
-#include "test_functional_conv_2x2_multi_in_out.h"
+#include "test_func_conv_2x2.h"
+#include "test_func_conv_2x2_multi_in_out.h"
+#include "test_func_dense_1x1.h"
+#include "test_func_dense_1x1_multi_in.h"
+#include "test_func_dense_1x1_multi_in_out.h"
+#include "test_func_dense_1x1_multi_out.h"
+#include "test_func_maxpool2d_3x3x3.h"
+#include "test_func_merge_1x1.h"
 #include "test_maxpool2d_1x1.h"
 #include "test_maxpool2d_2x2.h"
 #include "test_maxpool2d_3x2x2.h"
@@ -106,18 +107,10 @@ int main() {
   double apply_time = 0.0;
 
   if (!kerasify::tensor_test()) return 1;
+
   if (!kerasify::test_conv_2x2(&load_time, &apply_time)) return 1;
+
   if (!kerasify::test_dense_1x1(&load_time, &apply_time)) return 1;
-
-  if (!kerasify::test_functional_conv_2x2(&load_time, &apply_time)) return 1;
-  if (!kerasify::test_functional_dense_1x1(&load_time, &apply_time)) return 1;
-
-  if (!kerasify::test_functional_dense_1x1_merge(&load_time, &apply_time)) return 1;
-
-  if (!kerasify::test_functional_dense_1x1_multi_in(&load_time, &apply_time)) return 1;
-  if (!kerasify::test_functional_dense_1x1_multi_in_out(&load_time, &apply_time)) return 1;
-  if (!kerasify::test_functional_dense_1x1_multi_out(&load_time, &apply_time)) return 1;
-  if (!kerasify::test_functional_conv_2x2_multi_in_out(&load_time, &apply_time)) return 1;
 
   if (!kerasify::test_dense_10x1(&load_time, &apply_time)) return 1;
 
@@ -148,6 +141,27 @@ int main() {
   if (!kerasify::test_maxpool2d_3x2x2(&load_time, &apply_time)) return 1;
 
   if (!kerasify::test_maxpool2d_3x3x3(&load_time, &apply_time)) return 1;
+
+  if (!kerasify::test_func_dense_1x1(&load_time, &apply_time)) return 1;
+
+  if (!kerasify::test_func_conv_2x2(&load_time, &apply_time)) return 1;
+
+  if (!kerasify::test_func_maxpool2d_3x3x3(&load_time, &apply_time)) return 1;
+
+  if (!kerasify::test_func_merge_1x1(&load_time, &apply_time)) return 1;
+
+  if (!kerasify::test_func_dense_1x1_multi_in(&load_time, &apply_time))
+    return 1;
+
+  if (!kerasify::test_func_dense_1x1_multi_out(&load_time, &apply_time))
+    return 1;
+
+  if (!kerasify::test_func_dense_1x1_multi_in_out(&load_time,
+                                                        &apply_time))
+    return 1;
+
+  if (!kerasify::test_func_conv_2x2_multi_in_out(&load_time, &apply_time))
+    return 1;
 
   // Run benchmark 5 times and report duration.
   double total_load_time = 0.0;

@@ -514,7 +514,6 @@ bool KerasGraph::Initialize(const std::vector<KerasLayer*>& layers) {
 
 KerasGraph::KerasNode* KerasGraph::GetOrCreateNode(
     const std::string& layer_name) {
-  // One out node may be dependent upon another.
   if (node_map_.find(layer_name) == node_map_.end()) {
     KerasLayer* layer = layer_map_[layer_name];
     node_map_[layer_name] = std::unique_ptr<KerasNode>(new KerasNode(layer));
